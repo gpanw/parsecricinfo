@@ -2,6 +2,33 @@ import os
 from selenium import webdriver
 from bs4 import BeautifulSoup
 
+class menuLink:
+    def __init__(self, prev, curr, head):
+        self.prev = prev
+        self.curr = curr
+        self.head = head
+
+    def get_menu(self):
+        os.system('cls')
+        m = ' '.join(self.head.upper())
+        l = 100 - len(m)
+        c = int(l/2)
+        print('*'*c+m+'*'*c)
+        for k in self.curr:
+            print(k,''.join(self.curr[k]))
+            if k == 'Option    ':
+                print ('-'*100)
+        print ('*'*100)
+
+    def get_head(self):
+        return self.curr['Option    ']
+
+    def get_curr(self):
+        return self.curr
+
+    def get_prev(self):
+        return self.prev
+
 
 class cricinfo:
     def __init__(self):
@@ -10,35 +37,60 @@ class cricinfo:
         self.options.add_argument('--incognito')
         self.options.add_argument('--headless')
         self.chrome_loc = os.path.join(r'C:\Users\gpanwar2\webdriver','chromedriver.exe')
-        self.before = None
+        self.current_menu = None
         self.topevent = dict()
-        self.__menu__()
+        self.__mainmenu__()
 
-    def __menu__(self):
+
+    def __create_menu__(self, menu, head):
+        prev = self.current_menu
+        self.current_menu = menuLink(prev, menu, head)
+
+
+    def __print_current_menu__(self):
         os.system('cls')
-        print ('*'*100)
-        print ('Option    ', 'DESCRIPTION')
-        print ('-'*100)
-        print ('1         ', 'get top event')
-        print ('0         ', 'exit')
-        print ('*'*100)
-        self.topevent = dict()
+        self.current_menu.get_menu()
         choice = input('select you choice: ')
-        if choice == '1':
-            self.get_topevent()
+        self.__control_menu__(choice)
+
+
+    def __get_prev_menu__(self):
+        self.current_menu = self.current_menu.prev
+        self.__print_current_menu__()
         
 
-    def get_topevent(self):
+    def __mainmenu__(self):
+        os.system('cls')
+        menu = dict()
+        menu['Option    '] = ['DESCRIPTION']
+        menu['1         '] = ['top event']
+        menu['0         '] = ['exit']
+        self.topevent = dict()
+        self.__create_menu__(menu, 'mainmenu')
+        self.__print_current_menu__()
+        
+
+    def __control_menu__(self, value):
+        if self.current_menu.head == 'mainmenu':
+            self.__control_main_menu__(value)
+        elif self.current_menu.head == 'topevent':
+            self.get_topevent(value)
+            
+
+    def __control_main_menu__(self, value):
+        if value == '1':
+            self.__create_toevent_menu__()            
+            
+
+    def __create_toevent_menu__(self):
         driver = webdriver.Chrome(self.chrome_loc,chrome_options=self.options)
         driver.get('http://www.espncricinfo.com/')
         page_source = driver.page_source
         soup = BeautifulSoup(page_source, 'html.parser')
         driver.close()
         top_event_score = soup.find_all(class_='scoreboard')
-        os.system('cls')
-        print ('*'*100)
-        print ('OPTION    ','STATUS         ','TEAMS               ', 'DESCRIPTION')
-        print ('-'*100)
+        menu = dict()
+        menu['OPTION    '] = ['STATUS         ','TEAMS               ', 'DESCRIPTION']
         i = 1
         for top in top_event_score:            
             series = top.find_all(class_='scoreLabel')[0].get('data-id')
@@ -52,10 +104,18 @@ class cricinfo:
             description = description.replace('\n','').strip()
             sno = str(i)+' '*(10-len(str(i)))
             self.topevent[i] = [series, match, status, teams, description]
-            print (sno, status, teams, description)
+            menu[sno] = [status, teams, description]
             i += 1
-        print ('*'*100)
-        choice = input('select you choice: ')
+        menu['OPTION    '] = ['STATUS         ','TEAMS               ', 'DESCRIPTION']
+        menu['0         '] = ['Go Back To Previous Menu']
+        self.__create_menu__(menu, 'topevent')
+        self.__print_current_menu__()
+        
+
+    def get_topevent(self, choice):
+        if choice == '0':
+            self.__get_prev_menu__()
+            return
         try:
             series = self.topevent[int(choice)][0]
             match = self.topevent[int(choice)][1]
@@ -92,7 +152,7 @@ class cricinfo:
                 team2 = str(team2)+' '*(20-len(str(team2)))
                 team1_score = team_score[0].text
                 team2_score = team_score[1].text
-                game_summary = summary.find_all(class_='cscore_notes_game')
+                game_summary = summary.find_all(class_='cscore_notes_game')[0].text
                 print(team1, team1_score)
                 print(team2, team2_score)
                 print(game_summary)
@@ -110,10 +170,18 @@ class cricinfo:
                 break
         print('-'*100)
         print ('*'*100)
+        choice = input('Enter 1 to refresh and 0 to back: ')
+        if choice == '1':
+            self.get_match(series, match, description)
+        elif choice == '0':
+            self.__print_current_menu__()
 
     def __get_scoreboard__(self,obj):
         header = obj.find_all(class_='accordion-header')
-        print(header[0].text)
+        try:
+            print(header[0].text)
+        except:
+            return
         print('-'*100)
         batsman_section = obj.find_all(class_='scorecard-section batsmen')
         batsman_header = batsman_section[0].find_all(class_='wrap header')
